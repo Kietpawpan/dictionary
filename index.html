@@ -38,6 +38,7 @@
         .api-key-container {
             text-align: right;
             margin-bottom: 10px;
+            transition: opacity 0.3s ease;
         }
         
         .api-key-container input {
@@ -139,6 +140,12 @@
             font-family: var(--sans-font);
         }
 
+        .ai-reading {
+            color: var(--ai-purple);
+            font-weight: bold;
+            font-family: var(--sans-font);
+        }
+
         .listen-btn {
             padding: 2px 8px;
             font-size: 12px;
@@ -216,23 +223,80 @@
             cursor: pointer;
             transition: color 0.2s;
         }
+        
         .clickable-word:hover {
             color: var(--mw-red);
             text-decoration: underline;
+        }
+
+        .synonyms-container {
+            margin-top: 15px;
+            font-size: 16px;
+            color: #444;
+            font-family: var(--sans-font);
+        }
+        
+        .antonyms-container {
+            margin-top: 8px;
+            font-size: 16px;
+            color: #444;
+            font-family: var(--sans-font);
+        }
+        
+        .syn-tag {
+            color: #007BFF;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 8px;
+            display: inline-block;
+        }
+        
+        .syn-tag:hover {
+            text-decoration: underline;
+            color: #0056b3;
+        }
+        
+        .ant-tag {
+            color: #DC3545;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 8px;
+            display: inline-block;
+        }
+        
+        .ant-tag:hover {
+            text-decoration: underline;
+            color: #a71d2a;
+        }
+
+        .thai-search-notice {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            font-family: var(--sans-font);
+            font-size: 14px;
+            border-left: 4px solid #ffeeba;
+        }
+
+        #secret-trigger {
+            cursor: default;
+            user-select: none;
         }
     </style>
 </head>
 <body>
     <div class="app-container">
-        <div class="api-key-container">
+        <div class="api-key-container" id="apiKeyContainer">
             <input type="password" id="appPassword" placeholder="Enter App Password...">
         </div>
 
         <div class="header-banner">
-            Monte-Master <font color="yellow" face="Arial" style="font-weight: bold;"> Dictionary</font>
+            <span id="secret-trigger" ondblclick="toggleSecretMode()">Monte</span>-Master <font color="yellow" face="Arial" style="font-weight: bold;"> Dictionary</font>
         </div>
         <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Enter an English word...">
+            <input type="text" id="searchInput" placeholder="Enter an English or Thai word...">
             <button onclick="searchWord()">Search</button>
         </div>
         <div id="result" style="display: none;"></div>
@@ -240,6 +304,33 @@
 
     <script>
         const ENCRYPTED_API_KEY = "U2FsdGVkX1+RLbcmhUm4Igyqy0zypXmiu+HZ4Hd5h9rNEPgqAv9BecFpknt/avkXIUoKgv97BNGFg+xs4FixKA==";
+        
+        let isSecretModeActivated = false;
+        const SECRET_RAW_API_KEY = "AIzaSyAuS8NBs8qwB21ts0wxkSWt2TSfVJ0mJ2E";
+
+        // ฟังก์ชันสลับโหมดลับเมื่อดับเบิลคลิก
+        function toggleSecretMode() {
+            const container = document.getElementById('apiKeyContainer');
+            
+            if (!isSecretModeActivated) {
+                // เปิดโหมดลับ
+                isSecretModeActivated = true;
+                container.style.opacity = '0';
+                setTimeout(() => {
+                    container.style.display = 'none';
+                }, 300);
+                alert("✨ Secret Mode Activated! เชื่อมต่อ Gemini API อัตโนมัติ ✨");
+            } else {
+                // ปิดโหมดลับและกลับสู่โหมดปกติ
+                isSecretModeActivated = false;
+                container.style.display = 'block';
+                // หน่วงเวลาเล็กน้อยให้ display ทำงานก่อนค่อยปรับ opacity เพื่อให้เห็นแอนิเมชัน
+                setTimeout(() => {
+                    container.style.opacity = '1';
+                }, 10);
+                alert("🔒 กลับสู่โหมดปกติ ต้องใช้รหัสผ่าน 🔒");
+            }
+        }
 
         function playAudio(audioUrl) {
             const audio = new Audio(audioUrl);
@@ -270,22 +361,58 @@
             }).join(' ');
         }
 
-        async function fetchGeminiExamples(word, definitionsList) {
-            const password = document.getElementById('appPassword').value.trim();
-            if (!password) return; 
+        function getDecryptedApiKey() {
+            if (isSecretModeActivated) {
+                return SECRET_RAW_API_KEY;
+            }
 
-            let apiKey = "";
+            const password = document.getElementById('appPassword').value.trim();
+            if (!password) return null;
             try {
                 const bytes = CryptoJS.AES.decrypt(ENCRYPTED_API_KEY, password);
-                apiKey = bytes.toString(CryptoJS.enc.Utf8);
-                
-                if (!apiKey) {
-                    throw new Error("Invalid decryption");
-                }
+                const key = bytes.toString(CryptoJS.enc.Utf8);
+                return key ? key : null;
             } catch (error) {
-                console.error("รหัสผ่านไม่ถูกต้อง หรือถอดรหัสไม่สำเร็จ");
+                return null;
+            }
+        }
+
+        async function fetchThaiPronunciation(word) {
+            const el = document.getElementById('thai-pronunciation-text');
+            if (!el) return;
+
+            const apiKey = getDecryptedApiKey();
+            if (!apiKey) {
+                el.innerText = "(ใส่รหัสผ่านเพื่อโหลดคำอ่าน)";
                 return;
             }
+
+            el.innerHTML = "✨ <em>กำลังโหลด...</em>";
+            const promptText = `Provide the Thai phonetic spelling (คำอ่านภาษาไทย) for the English word "${word}". Return ONLY the Thai word without any punctuation or extra text. For example if the word is "environment" return "เอนไวรอนเมินท"`;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: promptText }] }],
+                        generationConfig: { temperature: 0.1 }
+                    })
+                });
+
+                if (!response.ok) throw new Error("API Request Failed");
+
+                const data = await response.json();
+                const reading = data.candidates[0].content.parts[0].text.trim();
+                el.innerText = reading;
+            } catch (error) {
+                el.innerText = "(โหลดข้อมูลล้มเหลว)";
+            }
+        }
+
+        async function fetchGeminiExamples(word, definitionsList) {
+            const apiKey = getDecryptedApiKey();
+            if (!apiKey) return; 
 
             definitionsList.forEach(def => {
                 const el = document.getElementById(`gemini-ex-${def.mIndex}-${def.dIndex}`);
@@ -336,16 +463,31 @@
         }
 
         async function searchWord() {
-            const word = document.getElementById('searchInput').value.trim();
+            const originalInput = document.getElementById('searchInput').value.trim();
             const resultDiv = document.getElementById('result');
             
-            if (!word) return;
+            if (!originalInput) return;
 
             resultDiv.style.display = 'block';
             resultDiv.innerHTML = '<p>Loading...</p>';
 
+            let targetWord = originalInput;
+            const isThai = /[ก-๙]/.test(originalInput);
+
             try {
-                const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+                if (isThai) {
+                    const thToEnResponse = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=th&tl=en&dt=t&q=${encodeURIComponent(originalInput)}`);
+                    if (thToEnResponse.ok) {
+                        const thToEnData = await thToEnResponse.json();
+                        const translatedText = thToEnData[0][0][0];
+                        targetWord = translatedText.trim().split(' ')[0].replace(/[^a-zA-Z-]/g, '').toLowerCase();
+                    } else {
+                        resultDiv.innerHTML = '<p>ไม่สามารถแปลคำภาษาไทยเป็นภาษาอังกฤษได้</p>';
+                        return;
+                    }
+                }
+
+                const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${targetWord}`);
                 
                 if (!response.ok) {
                     resultDiv.innerHTML = '<p>Word not found. Please try another word.</p>';
@@ -357,7 +499,7 @@
 
                 let thaiTranslation = "(ไม่พบคำแปล)";
                 try {
-                    const translateResponse = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=th&dt=t&q=${word}`);
+                    const translateResponse = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=th&dt=t&q=${targetWord}`);
                     if (translateResponse.ok) {
                         const translateData = await translateResponse.json();
                         thaiTranslation = translateData[0][0][0];
@@ -366,7 +508,15 @@
                     console.log("Translation API failed" + transError);
                 }
 
-                let html = `<div class="word">${entry.word}</div>`;
+                let html = '';
+
+                if (isThai) {
+                    html += `<div class="thai-search-notice">
+                        🇹🇭 ค้นหาจากภาษาไทย: <strong>${originalInput}</strong> ➔ 🇬🇧 <strong>${targetWord}</strong>
+                    </div>`;
+                }
+
+                html += `<div class="word">${entry.word}</div>`;
 
                 let ukAudio = '';
                 let usAudio = '';
@@ -406,7 +556,12 @@
                 html += `</div>`;
 
                 html += `<div class="pronounce-box">
-                    <strong>🇹🇭 คำแปลไทย:</strong> 
+                    <strong>🗣️ คำอ่าน:</strong> 
+                    <span id="thai-pronunciation-text" class="ai-reading"></span>
+                </div>`;
+
+                html += `<div class="pronounce-box">
+                    <strong>🇹🇭 แปลไทย:</strong> 
                     <span class="thai-reading">${thaiTranslation}</span>
                 </div>`;
 
@@ -442,10 +597,27 @@
                     });
                     
                     html += `</ol>`;
+
+                    if (meaning.synonyms && meaning.synonyms.length > 0) {
+                        html += `<div class="synonyms-container"><strong>Synonyms:</strong> `;
+                        meaning.synonyms.forEach(syn => {
+                            html += `<span class="syn-tag" onclick="document.getElementById('searchInput').value='${syn}'; searchWord(); window.scrollTo({ top: 0, behavior: 'smooth' });">${syn}</span>`;
+                        });
+                        html += `</div>`;
+                    }
+
+                    if (meaning.antonyms && meaning.antonyms.length > 0) {
+                        html += `<div class="antonyms-container"><strong>Antonyms:</strong> `;
+                        meaning.antonyms.forEach(ant => {
+                            html += `<span class="ant-tag" onclick="document.getElementById('searchInput').value='${ant}'; searchWord(); window.scrollTo({ top: 0, behavior: 'smooth' });">${ant}</span>`;
+                        });
+                        html += `</div>`;
+                    }
                 });
 
                 resultDiv.innerHTML = html;
 
+                fetchThaiPronunciation(currentWord);
                 fetchGeminiExamples(currentWord, definitionsForGemini);
                 
             } catch (error) {
