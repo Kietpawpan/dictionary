@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monte-Master Dictionary</title>
+    <!-- นำเข้าไลบรารี CryptoJS สำหรับการถอดรหัส -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        :root {
+            --mw-red: #C12026;
+            --mw-dark: #333333;
+            --paper-bg: #fdfcf7;
+            --serif-font: Georgia, "Times New Roman", serif;
+            --sans-font: Arial, Helvetica, sans-serif;
+            --ai-purple: #8a2be2;
+        }
+
+        body { 
+            font-family: var(--sans-font); 
+            padding: 0; 
+            background-color: var(--paper-bg);
+            margin: 0;
+            color: var(--mw-dark);
+        }
+
+        .app-container {
+            max-width: 700px;
+            margin: auto;
+            padding: 20px 40px 40px 40px;
+            background: #ffffff;
+            min-height: 100vh;
+            box-shadow: 0 0 15px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .api-key-container {
+            text-align: right;
+            margin-bottom: 10px;
+        }
+        
+        .api-key-container input {
+            padding: 6px;
+            font-size: 12px;
+            width: 200px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: var(--sans-font);
+        }
+
+        .header-banner {
+            background-color: var(--mw-red);
+            color: white;
+            text-align: center;
+            padding: 15px 10px;
+            margin: 0 -40px 30px -40px;
+            font-family: var(--serif-font);
+            letter-spacing: 1.5px;
+            font-weight: bold;
+            font-size: 22px;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--mw-red);
+            padding-bottom: 20px;
+        }
+
+        input[type="text"] { 
+            flex-grow: 1;
+            padding: 12px; 
+            font-size: 16px; 
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: var(--sans-font);
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--mw-red);
+        }
+
+        button { 
+            padding: 10px 20px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            background-color: var(--mw-red);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background-color: #a0181e;
+        }
+
+        #result { 
+            font-family: var(--serif-font);
+        }
+
+        .word { 
+            font-size: 42px; 
+            font-weight: bold; 
+            color: black;
+            margin-bottom: 5px;
+            letter-spacing: -0.5px;
+        }
+
+        .pronunciation-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 10px 0;
+            border-top: 1px solid #eaeaea;
+            border-bottom: 1px solid #eaeaea;
+            font-family: var(--sans-font);
+        }
+
+        .pronounce-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+        }
+
+        .phonetic-text {
+            color: #555;
+            font-family: var(--sans-font);
+        }
+
+        .thai-reading {
+            color: var(--mw-red);
+            font-weight: bold;
+            font-family: var(--sans-font);
+        }
+
+        .listen-btn {
+            padding: 2px 8px;
+            font-size: 12px;
+            background-color: #f1f1f1;
+            color: var(--mw-dark);
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-weight: normal;
+        }
+
+        .listen-btn:hover {
+            background-color: #e2e2e2;
+        }
+
+        .part-of-speech {
+            font-style: italic;
+            font-weight: bold;
+            color: black;
+            font-size: 20px;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        .meaning-list {
+            padding-left: 20px;
+            margin-top: 5px;
+            list-style-type: decimal;
+        }
+
+        .meaning-list li {
+            margin-bottom: 15px;
+            line-height: 1.6;
+            font-size: 18px;
+            color: #111;
+        }
+
+        .example { 
+            font-style: italic; 
+            color: #444; 
+            margin-top: 5px;
+            display: block;
+            font-size: 17px;
+        }
+        
+        .example::before {
+            content: "• ";
+            color: var(--mw-red);
+            font-weight: bold;
+        }
+
+        .example strong {
+            color: black;
+            font-weight: bold;
+        }
+
+        .gemini-example {
+            font-style: italic;
+            color: #333;
+            background-color: #f8f5ff;
+            padding: 8px 12px;
+            border-left: 3px solid var(--ai-purple);
+            margin-top: 8px;
+            font-size: 17px;
+            border-radius: 0 4px 4px 0;
+            display: none;
+        }
+
+        .gemini-example strong {
+            color: var(--ai-purple);
+            font-style: normal;
+        }
+        
+        .clickable-word {
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .clickable-word:hover {
+            color: var(--mw-red);
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="api-key-container">
+            <input type="password" id="appPassword" placeholder="Enter App Password...">
+        </div>
+
+        <div class="header-banner">
+            Monte-Master <font color="yellow" face="Arial" style="font-weight: bold;"> Dictionary</font>
+        </div>
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Enter an English word...">
+            <button onclick="searchWord()">Search</button>
+        </div>
+        <div id="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const ENCRYPTED_API_KEY = "U2FsdGVkX1+RLbcmhUm4Igyqy0zypXmiu+HZ4Hd5h9rNEPgqAv9BecFpknt/avkXIUoKgv97BNGFg+xs4FixKA==";
+
+        function playAudio(audioUrl) {
+            const audio = new Audio(audioUrl);
+            audio.play();
+        }
+
+        function searchFromText(element) {
+            const rawText = element.innerText;
+            const cleanWord = rawText.replace(/[^a-zA-Z-]/g, '');
+            if (cleanWord) {
+                document.getElementById('searchInput').value = cleanWord;
+                searchWord();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function makeClickable(text, targetWord) {
+            if (!text) return '';
+            return text.split(' ').map(wordStr => {
+                const cleanWord = wordStr.replace(/[^a-zA-Z-]/g, '').toLowerCase();
+                const isMatch = cleanWord === targetWord.toLowerCase();
+                
+                if (isMatch) {
+                    return `<strong><span class="clickable-word" onclick="searchFromText(this)">${wordStr}</span></strong>`;
+                } else {
+                    return `<span class="clickable-word" onclick="searchFromText(this)">${wordStr}</span>`;
+                }
+            }).join(' ');
+        }
+
+        async function fetchGeminiExamples(word, definitionsList) {
+            const password = document.getElementById('appPassword').value.trim();
+            if (!password) return; 
+
+            let apiKey = "";
+            try {
+                const bytes = CryptoJS.AES.decrypt(ENCRYPTED_API_KEY, password);
+                apiKey = bytes.toString(CryptoJS.enc.Utf8);
+                
+                if (!apiKey) {
+                    throw new Error("Invalid decryption");
+                }
+            } catch (error) {
+                console.error("รหัสผ่านไม่ถูกต้อง หรือถอดรหัสไม่สำเร็จ");
+                return;
+            }
+
+            definitionsList.forEach(def => {
+                const el = document.getElementById(`gemini-ex-${def.mIndex}-${def.dIndex}`);
+                if (el) {
+                    el.style.display = 'block';
+                    el.innerHTML = `✨ <span style="color: #666;">Generating example via Gemini...</span>`;
+                }
+            });
+
+            const promptDefs = definitionsList.map((d, i) => `${i + 1}. [${d.pos}] ${d.definition}`).join('\n');
+            const promptText = `Generate exactly one distinct English example sentence for the word "${word}" for each of the following definitions. Also provide a natural Thai translation for each sentence. Return ONLY a valid JSON array of objects with keys "en" (for the English sentence) and "th" (for the Thai translation) in the exact same order. Do not include any markdown formatting like \`\`\`json.\n\nDefinitions:\n${promptDefs}`;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: promptText }] }],
+                        generationConfig: { temperature: 0.7 }
+                    })
+                });
+
+                if (!response.ok) throw new Error("API Request Failed");
+
+                const data = await response.json();
+                let generatedText = data.candidates[0].content.parts[0].text;
+                
+                generatedText = generatedText.replace(/```json/g, '').replace(/```/g, '').trim();
+                const examplesArray = JSON.parse(generatedText);
+
+                definitionsList.forEach((def, index) => {
+                    const el = document.getElementById(`gemini-ex-${def.mIndex}-${def.dIndex}`);
+                    if (el && examplesArray[index] && examplesArray[index].en) {
+                        const clickableSentence = makeClickable(examplesArray[index].en, word);
+                        const thaiTranslation = examplesArray[index].th || "";
+                        
+                        el.innerHTML = `✨ <strong>Gemini:</strong> "${clickableSentence}"<br><span style="color: #666; font-size: 15px; margin-top: 6px; display: inline-block;">🇹🇭 ${thaiTranslation}</span>`;
+                    }
+                });
+
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                definitionsList.forEach(def => {
+                    const el = document.getElementById(`gemini-ex-${def.mIndex}-${def.dIndex}`);
+                    if (el) el.innerHTML = `✨ <span style="color: red;">Failed to generate example (Check Password/API Limit)</span>`;
+                });
+            }
+        }
+
+        async function searchWord() {
+            const word = document.getElementById('searchInput').value.trim();
+            const resultDiv = document.getElementById('result');
+            
+            if (!word) return;
+
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<p>Loading...</p>';
+
+            try {
+                const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+                
+                if (!response.ok) {
+                    resultDiv.innerHTML = '<p>Word not found. Please try another word.</p>';
+                    return;
+                }
+                
+                const data = await response.json();
+                const entry = data[0];
+
+                let thaiTranslation = "(ไม่พบคำแปล)";
+                try {
+                    const translateResponse = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=th&dt=t&q=${word}`);
+                    if (translateResponse.ok) {
+                        const translateData = await translateResponse.json();
+                        thaiTranslation = translateData[0][0][0];
+                    }
+                } catch (transError) {
+                    console.log("Translation API failed" + transError);
+                }
+
+                let html = `<div class="word">${entry.word}</div>`;
+
+                let ukAudio = '';
+                let usAudio = '';
+                let ukText = '';
+                let usText = '';
+
+                entry.phonetics.forEach(p => {
+                    if (p.audio && p.audio.includes('-uk.mp3')) {
+                        ukAudio = p.audio;
+                        if (p.text) ukText = p.text;
+                    }
+                    if (p.audio && p.audio.includes('-us.mp3')) {
+                        usAudio = p.audio;
+                        if (p.text) usText = p.text;
+                    }
+                });
+
+                if (!ukText && entry.phonetic) ukText = entry.phonetic;
+                if (!usText && entry.phonetic) usText = entry.phonetic;
+
+                html += `<div class="pronunciation-container">`;
+                
+                html += `<div class="pronounce-box">
+                    <strong>🇬🇧 UK:</strong> 
+                    <span class="phonetic-text">${ukText || '-'}</span>`;
+                if (ukAudio) {
+                    html += `<button class="listen-btn" onclick="playAudio('${ukAudio}')">🔊 Listen</button>`;
+                }
+                html += `</div>`;
+
+                html += `<div class="pronounce-box">
+                    <strong>🇺🇸 US:</strong> 
+                    <span class="phonetic-text">${usText || '-'}</span>`;
+                if (usAudio) {
+                    html += `<button class="listen-btn" onclick="playAudio('${usAudio}')">🔊 Listen</button>`;
+                }
+                html += `</div>`;
+
+                html += `<div class="pronounce-box">
+                    <strong>🇹🇭 คำแปลไทย:</strong> 
+                    <span class="thai-reading">${thaiTranslation}</span>
+                </div>`;
+
+                html += `</div>`; 
+
+                const currentWord = entry.word;
+                const definitionsForGemini = [];
+
+                entry.meanings.forEach((meaning, mIndex) => {
+                    html += `<div class="part-of-speech">${meaning.partOfSpeech}</div>`;
+                    html += `<ol class="meaning-list">`;
+                    
+                    meaning.definitions.forEach((def, dIndex) => {
+                        definitionsForGemini.push({
+                            definition: def.definition,
+                            pos: meaning.partOfSpeech,
+                            mIndex: mIndex,
+                            dIndex: dIndex
+                        });
+
+                        const clickableDef = makeClickable(def.definition, currentWord);
+                        html += `<li>`;
+                        html += `<div>${clickableDef}</div>`;
+                        
+                        if (def.example) {
+                            const clickableExample = makeClickable(def.example, currentWord);
+                            html += `<div class="example">"${clickableExample}"</div>`;
+                        }
+
+                        html += `<div id="gemini-ex-${mIndex}-${dIndex}" class="gemini-example"></div>`;
+                        
+                        html += `</li>`;
+                    });
+                    
+                    html += `</ol>`;
+                });
+
+                resultDiv.innerHTML = html;
+
+                fetchGeminiExamples(currentWord, definitionsForGemini);
+                
+            } catch (error) {
+                resultDiv.innerHTML = '<p>An error occurred while fetching the data.</p>';
+            }
+        }
+
+        document.getElementById("searchInput").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                searchWord();
+            }
+        });
+    </script>
+</body>
+</html>
