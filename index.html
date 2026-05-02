@@ -380,43 +380,18 @@
             }
         }
 
-        async function fetchThaiPronunciation(word) {
-            const el = document.getElementById('thai-pronunciation-text');
-            if (!el) return;
-
+        // ฟังก์ชันใหม่ที่รวมการขอคำอ่านและตัวอย่างไว้ในครั้งเดียว
+        async function fetchGeminiContent(word, definitionsList) {
             const apiKey = getDecryptedApiKey();
+            const pronunEl = document.getElementById('thai-pronunciation-text');
+
             if (!apiKey) {
-                el.innerText = "(ใส่รหัสผ่านเพื่อโหลดคำอ่าน)";
-                return;
+                if (pronunEl) pronunEl.innerText = "(ใส่รหัสผ่านเพื่อโหลดข้อมูล)";
+                return; 
             }
 
-            el.innerHTML = "✨ <em>กำลังโหลด...</em>";
-            const promptText = `Provide the Thai phonetic spelling (คำอ่านภาษาไทย) for the English word "${word}". Return ONLY the Thai word without any punctuation or extra text. For example if the word is "environment" return "เอนไวรอนเมินท"`;
-
-            try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: promptText }] }],
-                        generationConfig: { temperature: 0.1 }
-                    })
-                });
-
-                if (!response.ok) throw new Error("API Request Failed");
-
-                const data = await response.json();
-                const reading = data.candidates[0].content.parts[0].text.trim();
-                el.innerText = reading;
-            } catch (error) {
-                el.innerText = "(โหลดข้อมูลล้มเหลว)";
-            }
-        }
-
-        async function fetchGeminiExamples(word, definitionsList) {
-            const apiKey = getDecryptedApiKey();
-            if (!apiKey) return; 
-
+            // แสดงสถานะกำลังโหลด
+            if (pronunEl) pronunEl.innerHTML = "✨ <em>กำลังโหลด...</em>";
             definitionsList.forEach(def => {
                 const el = document.getElementById(`gemini-ex-${def.mIndex}-${def.dIndex}`);
                 if (el) {
@@ -425,18 +400,23 @@
                 }
             });
 
+            // สร้าง Prompt
             const promptDefs = definitionsList.map((d, i) => `${i + 1}. [${d.pos}] ${d.definition}`).join('\n');
-            const promptText = `For the word "${word}" process the following definitions. For each definition provide:
-1. A concise Thai translation of the definition.
-2. Exactly one distinct English example sentence.
-3. A natural Thai translation of that example sentence.
-Return ONLY a valid JSON array of objects with keys "defTh" (Thai translation of the definition) "en" (English example sentence) and "th" (Thai translation of the sentence) in the exact same order. Do not include any markdown formatting like \`\`\`json.
+            const promptText = `Analyze the English word "${word}" and the following definitions. Provide the output strictly as a JSON object with two keys:
+1. "pronunciation": The Thai phonetic spelling (คำอ่านภาษาไทย) for "${word}" (e.g. if the word is "environment" return "เอนไวรอนเมินท").
+2. "meanings": A JSON array of objects corresponding to the Definitions list in the exact same order. Each object must have:
+   - "defTh": A concise Thai translation of the definition.
+   - "en": Exactly one distinct English example sentence.
+   - "th": A natural Thai translation of that example sentence.
+
+Return ONLY a valid JSON object. Do not include any markdown formatting like \`\`\`json.
 
 Definitions:
 ${promptDefs}`;
 
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                // เปลี่ยนไปเรียกใช้ 1.5-flash เพื่อความเสถียร
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -451,8 +431,15 @@ ${promptDefs}`;
                 let generatedText = data.candidates[0].content.parts[0].text;
                 
                 generatedText = generatedText.replace(/```json/g, '').replace(/```/g, '').trim();
-                const examplesArray = JSON.parse(generatedText);
+                const resultObj = JSON.parse(generatedText);
 
+                // อัปเดตคำอ่านภาษาไทย
+                if (pronunEl) {
+                    pronunEl.innerText = resultObj.pronunciation || "(ไม่พบคำอ่าน)";
+                }
+
+                // อัปเดตคำแปลและประโยคตัวอย่าง
+                const examplesArray = resultObj.meanings || [];
                 definitionsList.forEach((def, index) => {
                     const defThEl = document.getElementById(`gemini-def-th-${def.mIndex}-${def.dIndex}`);
                     if (defThEl && examplesArray[index] && examplesArray[index].defTh) {
@@ -470,6 +457,7 @@ ${promptDefs}`;
 
             } catch (error) {
                 console.error("Gemini API Error:", error);
+                if (pronunEl) pronunEl.innerText = "(โหลดข้อมูลล้มเหลว)";
                 definitionsList.forEach(def => {
                     const el = document.getElementById(`gemini-ex-${def.mIndex}-${def.dIndex}`);
                     if (el) el.innerHTML = `✨ <span style="color: red;">Failed to generate content (Check Password/API Limit)</span>`;
@@ -520,7 +508,7 @@ ${promptDefs}`;
                         thaiTranslation = translateData[0][0][0];
                     }
                 } catch (transError) {
-                    console.log("Translation API failed" + transError);
+                    console.log("Translation API failed " + transError);
                 }
 
                 let html = '';
@@ -632,8 +620,8 @@ ${promptDefs}`;
 
                 resultDiv.innerHTML = html;
 
-                fetchThaiPronunciation(currentWord);
-                fetchGeminiExamples(currentWord, definitionsForGemini);
+                // เปลี่ยนมาเรียกใช้ฟังก์ชันเดียวที่ยุบรวมแล้ว
+                fetchGeminiContent(currentWord, definitionsForGemini);
                 
             } catch (error) {
                 resultDiv.innerHTML = '<p>An error occurred while fetching the data.</p>';
