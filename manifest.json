@@ -7,12 +7,12 @@
   "theme_color": "#6b21a8",
   "icons": [
     {
-      "src": "dict.png",
+      "src": "dict.jpeg",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "dict.png",
+      "src": "dict.jpeg",
       "sizes": "512x512",
       "type": "image/png"
     }
