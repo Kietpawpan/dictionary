@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Merger App</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: auto; }
+        .container { display: flex; flex-direction: column; gap: 15px; }
+        textarea { width: 100%; height: 300px; font-family: monospace; }
+        button { padding: 10px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>แอปพลิเคชันรวมไฟล์ JSON</h2>
+        <input type="file" id="fileInput" multiple accept=".json">
+        <button id="mergeBtn">รวมไฟล์ JSON</button>
+        <textarea id="outputArea" readonly placeholder="ผลลัพธ์จะแสดงที่นี่"></textarea>
+        <button id="downloadBtn" disabled>ดาวน์โหลดไฟล์ JSON ใหม่</button>
+    </div>
+
+    <script>
+        let mergedData = {};
+
+        document.getElementById('mergeBtn').addEventListener('click', async () => {
+            const files = document.getElementById('fileInput').files;
+            if (files.length < 2) {
+                alert('กรุณาเลือกไฟล์ JSON อย่างน้อย 2 ไฟล์');
+                return;
+            }
+
+            mergedData = {};
+            const outputArea = document.getElementById('outputArea');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            try {
+                for (let file of files) {
+                    const text = await readFileAsync(file);
+                    const json = JSON.parse(text);
+                    mergedData = { ...mergedData, ...json };
+                }
+                outputArea.value = JSON.stringify(mergedData, null, 2);
+                downloadBtn.disabled = false;
+            } catch (error) {
+                outputArea.value = 'เกิดข้อผิดพลาด โปรดตรวจสอบว่าไฟล์ทั้งหมดเป็น JSON ที่ถูกต้อง';
+                downloadBtn.disabled = true;
+            }
+        });
+
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(mergedData, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "merged_output.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        });
+
+        function readFileAsync(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+    </script>
+</body>
+</html>
