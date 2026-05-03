@@ -310,6 +310,16 @@
     </div>
 
     <script>
+        let customDictionary = {};
+
+        // Fetch the custom JSON file when the application loads
+        fetch('monte-master.json')
+            .then(response => response.json())
+            .then(data => {
+                customDictionary = data;
+            })
+            .catch(error => console.log('Notice: Custom dictionary file not found or could not be loaded.', error));
+
         const ENCRYPTED_API_KEY = "U2FsdGVkX183p6HkON8NZ53vaNZmLE9rtTpyebpYr+AGhAuDEkHTsSdIDEfG2aj3yCaen2Fm/ZOULs/hCspeXQ==";
         
         let isSecretModeActivated = false;
@@ -588,7 +598,7 @@ ${promptDefs}`;
                 entry.meanings.forEach((meaning, mIndex) => {
                     html += `<div class="part-of-speech">${meaning.partOfSpeech}</div>`;
                     html += `<ol class="meaning-list">`;
-                    
+
                     meaning.definitions.forEach((def, dIndex) => {
                         definitionsForGemini.push({
                             definition: def.definition,
@@ -605,6 +615,27 @@ ${promptDefs}`;
                             const clickableExample = makeClickable(def.example, currentWord);
                             html += `<div class="example">"${clickableExample}"</div>`;
                         }
+
+                        // ==========================================
+                        // NEW LOGIC: Inject Custom JSON Examples
+                        // ==========================================
+                        if (customDictionary[currentWord]) {
+                            customDictionary[currentWord].forEach(customItem => {
+                                // Check if Part of Speech matches AND the API's definition contains your target keyword
+                                if (meaning.partOfSpeech === customItem.partOfSpeech &&
+                                    def.definition.toLowerCase().includes(customItem.keyword.toLowerCase())) {
+                                    
+                                    const clickableCustom = makeClickable(customItem.example, currentWord);
+                                    
+                                    // Add your custom styled example block
+                                    html += `<div class="example" style="color: #0056b3; background-color: #f0f7ff; padding: 8px 12px; border-left: 3px solid #0056b3; margin-top: 8px; border-radius: 0 4px 4px 0;">
+                                                ⭐ <strong>Custom Example:</strong> "${clickableCustom}"<br>
+                                                <span style="color: #444; font-size: 15px; margin-top: 4px; display: inline-block;">🇹🇭 ${customItem.thaiTranslation}</span>
+                                             </div>`;
+                                }
+                            });
+                        }
+                        // ==========================================
 
                         html += `<div id="gemini-ex-${mIndex}-${dIndex}" class="gemini-example"></div>`;
                         
