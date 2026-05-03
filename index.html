@@ -322,10 +322,14 @@
 
         <!-- ชุดเครื่องมือจัดการฐานข้อมูล -->
         <div class="tools-container" style="display: flex; gap: 10px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px dashed #ccc;">
-            <button onclick="exportToJson()" style="background-color: #28a745; font-size: 14px; padding: 8px 15px; color: white;">💾 บันทึกฐานข้อมูล (Export)</button>
+            <button onclick="exportToJson()" style="background-color: #28a745; font-size: 14px; padding: 8px 15px; color: white;">💾 Export</button>
             <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importFromJson(event)">
-            <button onclick="document.getElementById('importFile').click()" style="background-color: #17a2b8; font-size: 14px; padding: 8px 15px; color: white;">📂 โหลดฐานข้อมูล (Import)</button>
-            <button onclick="viewDatabase()" style="background-color: #ffc107; color: #333; font-size: 14px; padding: 8px 15px; font-weight: bold;">📋 ดูคำศัพท์ที่บันทึกไว้</button>
+            <button onclick="document.getElementById('importFile').click()" style="background-color: #17a2b8; font-size: 14px; padding: 8px 15px; color: white;">📂 Import</button>
+            <button onclick="viewDatabase()" style="background-color: #ffc107; color: #333; font-size: 14px; padding: 8px 15px; font-weight: bold;">📋 Library</button>
+
+
+<input type="file" id="mergeFileInput" multiple accept=".json" style="display: none;" onchange="handleMergeFiles(event)">
+<button onclick="document.getElementById('mergeFileInput').click()" style="background-color: #8a2be2; font-size: 14px; padding: 8px 15px; color: white; font-weight: bold;">🔄 Merge JSON</button>
         </div>
 
         <div id="result" style="display: none;"></div>
@@ -703,21 +707,32 @@ ${promptDefs}`;
             }
         });
 
-        // ฟังก์ชันส่งออกไฟล์ JSON
-        function exportToJson() {
-            if (Object.keys(myWordDatabase).length === 0) {
-                alert("ยังไม่มีข้อมูลคำศัพท์สำหรับบันทึก ลองค้นหาคำศัพท์ดูก่อนครับ");
-                return;
-            }
-            const dataStr = JSON.stringify(myWordDatabase, null, 2);
-            const blob = new Blob([dataStr], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "monte_database.json";
-            a.click();
-            URL.revokeObjectURL(url);
-        }
+ // ฟังก์ชันส่งออกไฟล์ JSON
+function exportToJson() {
+    if (Object.keys(myWordDatabase).length === 0) {
+        alert("ยังไม่มีข้อมูลคำศัพท์สำหรับบันทึก ลองค้นหาคำศัพท์ดูก่อนครับ");
+        return;
+    }
+
+    // จัดเรียงคำศัพท์ในฐานข้อมูลตามลำดับตัวอักษรใหม่ก่อนบันทึก
+    const sortedKeys = Object.keys(myWordDatabase).sort((a, b) => a.localeCompare(b));
+    let sortedDatabase = {};
+    for (let key of sortedKeys) {
+        sortedDatabase[key] = myWordDatabase[key];
+    }
+    
+    // อัปเดตฐานข้อมูลหลักให้เรียงลำดับด้วย
+    myWordDatabase = sortedDatabase; 
+
+    const dataStr = JSON.stringify(myWordDatabase, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "monte_database.json";
+    a.click();
+    URL.revokeObjectURL(url);
+}
 
         // ฟังก์ชันนำเข้าไฟล์ JSON
         function importFromJson(event) {
@@ -738,37 +753,50 @@ ${promptDefs}`;
             reader.readAsText(file);
         }
 
-        // ฟังก์ชันแสดงรายการคำศัพท์ทั้งหมดในฐานข้อมูล
-        function viewDatabase() {
-            const resultDiv = document.getElementById('result');
-            resultDiv.style.display = 'block';
-            
-            if (Object.keys(myWordDatabase).length === 0) {
-                resultDiv.innerHTML = '<div style="text-align: center; padding: 30px; color: #666;">ยังไม่มีคำศัพท์ในฐานข้อมูล</div>';
-                return;
-            }
-            
-            let html = '<div class="word" style="font-size: 28px; border-bottom: 2px solid var(--mw-red); padding-bottom: 10px; margin-bottom: 20px;">🗂️ คลังคำศัพท์ของฉัน</div>';
-            html += '<ul style="list-style-type: none; padding-left: 0;">';
-            
-            for (const word in myWordDatabase) {
-                const data = myWordDatabase[word];
-                let summary = "";
-                if (data.meanings.length > 0 && data.meanings[0].defTh) {
-                    summary = `<span style="color: #666; font-size: 15px; margin-left: 10px;">- ${data.meanings[0].defTh}</span>`;
-                }
-                
-                // แก้ไขตรงนี้เพื่อเรียกฟังก์ชัน viewSavedWord แทนการใช้ searchWord
-                html += `<li style="margin-bottom: 15px; background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid var(--mw-red);">
-                            <span class="clickable-word" style="font-size: 20px; font-weight: bold; color: var(--mw-dark);" onclick="viewSavedWord('${word}')">${word}</span>
-                            <span style="color: var(--ai-purple); font-size: 15px; margin-left: 10px;">[${data.pronunciation}]</span>
-                            ${summary}
-                            <div style="font-size: 13px; color: #888; margin-top: 5px;">บันทึกไว้ ${data.meanings.length} ความหมายประโยค</div>
-                         </li>`;
-            }
-            html += '</ul>';
-            resultDiv.innerHTML = html;
+      // ฟังก์ชันแสดงรายการคำศัพท์ทั้งหมดในฐานข้อมูล
+function viewDatabase() {
+    const resultDiv = document.getElementById('result');
+    resultDiv.style.display = 'block';
+    
+    if (Object.keys(myWordDatabase).length === 0) {
+        resultDiv.innerHTML = '<div style="text-align: center; padding: 30px; color: #666;">ยังไม่มีคำศัพท์ในฐานข้อมูล</div>';
+        return;
+    }
+    
+    let html = '<div class="word" style="font-size: 28px; border-bottom: 2px solid var(--mw-red); padding-bottom: 10px; margin-bottom: 20px;">🗂️ คลังคำศัพท์ของฉัน</div>';
+    
+    // เพิ่มกล่องค้นหาแบบเรียลไทม์
+    html += `
+    <div style="margin-bottom: 20px;">
+        <input type="text" id="dbSearchInput" placeholder="🔍 ค้นหาคำศัพท์ในคลัง (พิมพ์ภาษาอังกฤษหรือคำแปล)..." 
+               style="width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: var(--sans-font);"
+               oninput="filterDatabase()">
+    </div>`;
+
+    html += '<ul id="dbWordList" style="list-style-type: none; padding-left: 0;">';
+    
+    for (const word in myWordDatabase) {
+        const data = myWordDatabase[word];
+        let summary = "";
+        let plainSummary = ""; // สำหรับเก็บคำแปลแบบไม่มีแท็ก HTML เอาไว้ค้นหา
+        
+        if (data.meanings && data.meanings.length > 0 && data.meanings[0].defTh) {
+            summary = `<span style="color: #666; font-size: 15px; margin-left: 10px;">- ${data.meanings[0].defTh}</span>`;
+            plainSummary = data.meanings[0].defTh;
         }
+        
+        // เพิ่มคลาส db-word-item และ data-search เพื่อให้ฟังก์ชันค้นหานำไปใช้
+        html += `<li class="db-word-item" data-search="${word.toLowerCase()} ${plainSummary}" style="margin-bottom: 15px; background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid var(--mw-red);">
+                    <span class="clickable-word" style="font-size: 20px; font-weight: bold; color: var(--mw-dark);" onclick="viewSavedWord('${word}')">${word}</span>
+                    <span style="color: var(--ai-purple); font-size: 15px; margin-left: 10px;">[${data.pronunciation || '-'}]</span>
+                    ${summary}
+                    <div style="font-size: 13px; color: #888; margin-top: 5px;">บันทึกไว้ ${data.meanings ? data.meanings.length : 0} ความหมาย/ประโยค</div>
+                 </li>`;
+    }
+    html += '</ul>';
+    resultDiv.innerHTML = html;
+}
+
 
 // ฟังก์ชันสำหรับแสดงข้อมูลคำศัพท์ที่บันทึกไว้แบบออฟไลน์
         function viewSavedWord(word) {
@@ -822,7 +850,97 @@ ${promptDefs}`;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
+// ฟังก์ชันช่วยอ่านไฟล์แบบ Async
+function readFileAsync(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsText(file);
+    });
+}
 
+
+// ฟังก์ชันจัดการการรวมไฟล์ JSON
+async function handleMergeFiles(event) {
+    const files = event.target.files;
+    
+    if (files.length < 2) {
+        alert("กรุณาเลือกไฟล์ JSON อย่างน้อย 2 ไฟล์เพื่อทำการรวม");
+        event.target.value = '';
+        return;
+    }
+
+    let tempData = {};
+
+    try {
+        // 1. อ่านและรวมข้อมูลจากทุกไฟล์ที่เลือก
+        for (let file of files) {
+            const text = await readFileAsync(file);
+            const json = JSON.parse(text);
+            tempData = { ...tempData, ...json };
+        }
+
+        // 2. นำข้อมูลจากไฟล์มารวมกับฐานข้อมูลหลักที่อยู่ในแอปปัจจุบัน
+        let combinedData = { ...myWordDatabase, ...tempData };
+
+        // 3. จัดเรียงคีย์ (คำศัพท์) ใหม่ทั้งหมดตามลำดับตัวอักษร A-Z
+        const sortedKeys = Object.keys(combinedData).sort((a, b) => a.localeCompare(b));
+        
+        // 4. สร้างฐานข้อมูลใหม่ที่จัดเรียงเรียบร้อยแล้ว
+        let finalSortedDatabase = {};
+        for (let key of sortedKeys) {
+            finalSortedDatabase[key] = combinedData[key];
+        }
+
+        // 5. อัปเดตฐานข้อมูลหลักให้เป็นข้อมูลที่จัดเรียงแล้ว
+        myWordDatabase = finalSortedDatabase;
+
+        // 6. สร้างชื่อไฟล์ตามรูปแบบ ปีพ.ศ. - เดือน - วัน - ชั่วโมง - นาที
+        const now = new Date();
+        const beYear = now.getFullYear() + 543;
+        const yy = beYear.toString().slice(-2);
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const h = now.getHours();
+        const m = now.getMinutes();
+        const fileName = `Monte-Master-Dictionary-${yy}-${mm}-${dd}-${h}-${m}.json`;
+
+        // สั่งดาวน์โหลดไฟล์ฐานข้อมูลล่าสุดที่รวมและเรียงลำดับแล้ว
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(myWordDatabase, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", fileName);
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+
+        alert("รวมไฟล์และเรียงลำดับตัวอักษรใหม่สำเร็จ ข้อมูลถูกอัปเดตเข้าสู่คลังคำศัพท์แล้ว");
+        event.target.value = ''; // รีเซ็ต input สำหรับการใช้งานครั้งถัดไป
+
+    } catch (error) {
+        alert("เกิดข้อผิดพลาด โปรดตรวจสอบว่าไฟล์ทั้งหมดเป็นรูปแบบ JSON ที่ถูกต้อง");
+        console.error("Merge JSON Error:", error);
+    }
+}
+
+// ฟังก์ชันสำหรับกรองคำศัพท์ในหน้าคลังคำศัพท์
+function filterDatabase() {
+    const searchInput = document.getElementById('dbSearchInput').value.toLowerCase();
+    const wordItems = document.querySelectorAll('.db-word-item');
+
+    wordItems.forEach(item => {
+        // ดึงข้อความจาก data-search ที่เราซ่อนไว้ (มีทั้งคำศัพท์และคำแปล)
+        const searchText = item.getAttribute('data-search');
+        
+        // ถ้าตัวอักษรที่พิมพ์ตรงกับข้อมูลใน data-search ให้แสดง ถ้าไม่ตรงให้ซ่อน
+        if (searchText.includes(searchInput)) {
+            item.style.display = ''; // แสดงรายการ
+        } else {
+            item.style.display = 'none'; // ซ่อนรายการ
+        }
+    });
+}
     </script>
 </body>
 </html>
