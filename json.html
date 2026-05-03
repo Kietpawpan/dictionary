@@ -51,10 +51,23 @@
         });
 
         document.getElementById('downloadBtn').addEventListener('click', () => {
+            const now = new Date();
+            
+            const beYear = now.getFullYear() + 543;
+            const yy = beYear.toString().slice(-2);
+            
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            
+            const h = now.getHours();
+            const m = now.getMinutes();
+
+            const fileName = `Monte-Master-Dictionary-${yy}-${mm}-${dd}-${h}-${m}.json`;
+
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(mergedData, null, 2));
             const downloadAnchorNode = document.createElement('a');
             downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "merged_output.json");
+            downloadAnchorNode.setAttribute("download", fileName);
             document.body.appendChild(downloadAnchorNode);
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
