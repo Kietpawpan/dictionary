@@ -758,8 +758,9 @@ ${promptDefs}`;
                     summary = `<span style="color: #666; font-size: 15px; margin-left: 10px;">- ${data.meanings[0].defTh}</span>`;
                 }
                 
+                // แก้ไขตรงนี้เพื่อเรียกฟังก์ชัน viewSavedWord แทนการใช้ searchWord
                 html += `<li style="margin-bottom: 15px; background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid var(--mw-red);">
-                            <span class="clickable-word" style="font-size: 20px; font-weight: bold; color: var(--mw-dark);" onclick="document.getElementById('searchInput').value='${word}'; searchWord(); window.scrollTo({ top: 0, behavior: 'smooth' });">${word}</span>
+                            <span class="clickable-word" style="font-size: 20px; font-weight: bold; color: var(--mw-dark);" onclick="viewSavedWord('${word}')">${word}</span>
                             <span style="color: var(--ai-purple); font-size: 15px; margin-left: 10px;">[${data.pronunciation}]</span>
                             ${summary}
                             <div style="font-size: 13px; color: #888; margin-top: 5px;">บันทึกไว้ ${data.meanings.length} ความหมายประโยค</div>
@@ -768,6 +769,60 @@ ${promptDefs}`;
             html += '</ul>';
             resultDiv.innerHTML = html;
         }
+
+// ฟังก์ชันสำหรับแสดงข้อมูลคำศัพท์ที่บันทึกไว้แบบออฟไลน์
+        function viewSavedWord(word) {
+            const data = myWordDatabase[word];
+            const resultDiv = document.getElementById('result');
+            
+            if (!data) return;
+
+            let html = `
+            <div style="margin-bottom: 20px;">
+                <button onclick="viewDatabase()" style="background-color: #6c757d; font-size: 14px; padding: 8px 15px; border-radius: 4px; border: none; color: white; cursor: pointer; font-weight: bold;">⬅️ กลับไปคลังคำศัพท์</button>
+            </div>
+            <div class="word">${data.word}</div>
+            <div class="pronunciation-container">
+                <div class="pronounce-box">
+                    <strong>🗣️ คำอ่าน:</strong> 
+                    <span class="ai-reading">${data.pronunciation || '-'}</span>
+                </div>
+            </div>`;
+
+            const meaningsByPos = {};
+            data.meanings.forEach(m => {
+                if (!meaningsByPos[m.partOfSpeech]) meaningsByPos[m.partOfSpeech] = [];
+                meaningsByPos[m.partOfSpeech].push(m);
+            });
+
+            for (const pos in meaningsByPos) {
+                html += `<div class="part-of-speech">${pos}</div>`;
+                html += `<ol class="meaning-list">`;
+                
+                meaningsByPos[pos].forEach(def => {
+                    const defText = def.definition || '';
+                    const defTh = def.defTh ? ` <span class="thai-definition">(<strong>แปล:</strong> ${def.defTh})</span>` : '';
+                    
+                    html += `<li>`;
+                    html += `<div>${defText}${defTh}</div>`;
+                    
+                    if (def.exampleEn) {
+                        html += `<div class="gemini-example" style="display: block; background-color: #f8f5ff; padding: 8px 12px; border-left: 3px solid var(--ai-purple); margin-top: 8px; border-radius: 0 4px 4px 0;">
+                                    ✨ <strong>Gemini:</strong> "${def.exampleEn}"<br>
+                                    <span style="color: #666; font-size: 15px; margin-top: 6px; display: inline-block;">🇹🇭 ${def.exampleTh || ''}</span>
+                                 </div>`;
+                    }
+                    
+                    html += `</li>`;
+                });
+                html += `</ol>`;
+            }
+
+            resultDiv.innerHTML = html;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+
     </script>
 </body>
 </html>
