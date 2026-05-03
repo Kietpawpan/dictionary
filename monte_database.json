@@ -1,0 +1,57 @@
+{
+  "will": {
+    "word": "will",
+    "pronunciation": "วิล",
+    "meanings": [
+      {
+        "partOfSpeech": "verb",
+        "definition": "(now uncommon or literary) To wish, desire (something).",
+        "defTh": "ปรารถนา, ต้องการ (สิ่งใดสิ่งหนึ่ง)",
+        "exampleEn": "He willed a peaceful resolution to the conflict.",
+        "exampleTh": "เขาปรารถนาให้ความขัดแย้งคลี่คลายลงอย่างสันติ"
+      },
+      {
+        "partOfSpeech": "verb",
+        "definition": "(nowadays rare) To wish or desire (that something happen); to intend (that).",
+        "defTh": "ปรารถนาหรือตั้งใจให้บางสิ่งเกิดขึ้น",
+        "exampleEn": "She willed herself to stay awake through the long night.",
+        "exampleTh": "เธอตั้งใจที่จะอยู่ให้ตื่นตลอดคืนที่ยาวนาน"
+      },
+      {
+        "partOfSpeech": "verb",
+        "definition": "(auxiliary) To habitually do (a given action).",
+        "defTh": "ทำเป็นประจำ, มักจะทำ",
+        "exampleEn": "Every morning, he will take a walk in the park.",
+        "exampleTh": "ทุกเช้า เขามักจะไปเดินเล่นในสวนสาธารณะ"
+      },
+      {
+        "partOfSpeech": "verb",
+        "definition": "(auxiliary) To choose to (do something); used to express intention but without any temporal connotations (+ bare infinitive), often in negation.",
+        "defTh": "เลือกที่จะทำ (บางสิ่ง); แสดงความตั้งใจโดยไม่มีนัยยะทางเวลา มักใช้ในรูปปฏิเสธ",
+        "exampleEn": "The old car just won't start anymore.",
+        "exampleTh": "รถเก่าคันนั้นไม่ยอมสตาร์ทอีกต่อไปแล้ว"
+      },
+      {
+        "partOfSpeech": "verb",
+        "definition": "(auxiliary) Used to express the future tense, sometimes with some implication of volition when used in the first person. Compare shall.",
+        "defTh": "ใช้เพื่อแสดงกาลอนาคต บางครั้งมีความหมายถึงความตั้งใจเมื่อใช้กับบุรุษที่หนึ่ง",
+        "exampleEn": "I will meet you at the cafe tomorrow.",
+        "exampleTh": "ฉันจะไปเจอคุณที่ร้านกาแฟพรุ่งนี้"
+      },
+      {
+        "partOfSpeech": "verb",
+        "definition": "(auxiliary) To be able to, to have the capacity to.",
+        "defTh": "สามารถทำได้, มีความสามารถที่จะ",
+        "exampleEn": "This small car will hold five people comfortably.",
+        "exampleTh": "รถคันเล็กคันนี้สามารถจุคนได้ห้าคนอย่างสบายๆ"
+      },
+      {
+        "partOfSpeech": "verb",
+        "definition": "(auxiliary) Expressing a present tense with some conditional or subjective weakening: \"will turn out to\", \"must by inference\".",
+        "defTh": "แสดงกาลปัจจุบันที่มีเงื่อนไขหรือการคาดเดา: \"น่าจะกลายเป็น\", \"ต้องเป็นเช่นนั้นโดยอนุมาน\"",
+        "exampleEn": "That will be the postman at the door.",
+        "exampleTh": "นั่นน่าจะเป็นบุรุษไปรษณีย์ที่หน้าประตู"
+      }
+    ]
+  }
+}
