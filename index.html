@@ -65,7 +65,7 @@
         .search-container {
             display: flex;
             gap: 10px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             border-bottom: 2px solid var(--mw-red);
             padding-bottom: 20px;
         }
@@ -280,6 +280,18 @@
             border-left: 4px solid #ffeeba;
         }
 
+        .tools-container button {
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: var(--sans-font);
+            transition: opacity 0.2s;
+        }
+
+        .tools-container button:hover {
+            opacity: 0.8;
+        }
+
         #secret-trigger {
             cursor: default;
             user-select: none;
@@ -302,15 +314,26 @@
         <div class="header-banner">
             <span id="secret-trigger" ondblclick="toggleSecretMode()">Monte</span>-Master <font color="yellow" face="Arial" style="font-weight: bold;"> Dictionary</font>
         </div>
+        
         <div class="search-container">
             <input type="text" id="searchInput" placeholder="Enter an English or Thai word...">
             <button onclick="searchWord()">Search</button>
         </div>
+
+        <!-- ชุดเครื่องมือจัดการฐานข้อมูล -->
+        <div class="tools-container" style="display: flex; gap: 10px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px dashed #ccc;">
+            <button onclick="exportToJson()" style="background-color: #28a745; font-size: 14px; padding: 8px 15px; color: white;">💾 บันทึกฐานข้อมูล (Export)</button>
+            <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importFromJson(event)">
+            <button onclick="document.getElementById('importFile').click()" style="background-color: #17a2b8; font-size: 14px; padding: 8px 15px; color: white;">📂 โหลดฐานข้อมูล (Import)</button>
+            <button onclick="viewDatabase()" style="background-color: #ffc107; color: #333; font-size: 14px; padding: 8px 15px; font-weight: bold;">📋 ดูคำศัพท์ที่บันทึกไว้</button>
+        </div>
+
         <div id="result" style="display: none;"></div>
     </div>
 
     <script>
         let customDictionary = {};
+        let myWordDatabase = {}; // ตัวแปรหลักสำหรับเก็บข้อมูลคำศัพท์ที่ค้นหา
 
         // Fetch the custom JSON file when the application loads
         fetch('monte-master.json')
@@ -390,7 +413,7 @@
             }
         }
 
- async function fetchGeminiData(word, definitionsList) {
+        async function fetchGeminiData(word, definitionsList) {
             const apiKey = getDecryptedApiKey();
             const pronunEl = document.getElementById('thai-pronunciation-text');
             
@@ -454,6 +477,14 @@ ${promptDefs}`;
 
                 // อัปเดตคำแปลและประโยคตัวอย่าง
                 const examplesArray = resultData.examples || [];
+                
+                // สร้างพื้นที่เก็บข้อมูลของคำนี้ในฐานข้อมูล
+                myWordDatabase[word] = {
+                    word: word,
+                    pronunciation: resultData.pronunciation || "-",
+                    meanings: []
+                };
+
                 definitionsList.forEach((def, index) => {
                     const defThEl = document.getElementById(`gemini-def-th-${def.mIndex}-${def.dIndex}`);
                     if (defThEl && examplesArray[index] && examplesArray[index].defTh) {
@@ -465,6 +496,15 @@ ${promptDefs}`;
                         const clickableSentence = makeClickable(examplesArray[index].en, word);
                         const thaiTranslation = examplesArray[index].th || "";
                         el.innerHTML = `✨ <strong>Gemini:</strong> "${clickableSentence}"<br><span style="color: #666; font-size: 15px; margin-top: 6px; display: inline-block;">🇹🇭 ${thaiTranslation}</span>`;
+                        
+                        // บันทึกความหมายและประโยคตัวอย่างลงฐานข้อมูล
+                        myWordDatabase[word].meanings.push({
+                            partOfSpeech: def.pos,
+                            definition: def.definition,
+                            defTh: examplesArray[index].defTh,
+                            exampleEn: examplesArray[index].en,
+                            exampleTh: thaiTranslation
+                        });
                     } else if (el) {
                         el.innerHTML = `✨ <span style="color: red;">No example generated</span>`;
                     }
@@ -480,7 +520,6 @@ ${promptDefs}`;
             }
         }
 
-           
         async function searchWord() {
             const originalInput = document.getElementById('searchInput').value.trim();
             const resultDiv = document.getElementById('result');
@@ -610,18 +649,13 @@ ${promptDefs}`;
                             html += `<div class="example">"${clickableExample}"</div>`;
                         }
 
-                        // ==========================================
-                        // NEW LOGIC: Inject Custom JSON Examples
-                        // ==========================================
                         if (customDictionary[currentWord]) {
                             customDictionary[currentWord].forEach(customItem => {
-                                // Check if Part of Speech matches AND the API's definition contains your target keyword
                                 if (meaning.partOfSpeech === customItem.partOfSpeech &&
                                     def.definition.toLowerCase().includes(customItem.keyword.toLowerCase())) {
                                     
                                     const clickableCustom = makeClickable(customItem.example, currentWord);
                                     
-                                    // Add your custom styled example block
                                     html += `<div class="example" style="color: #0056b3; background-color: #f0f7ff; padding: 8px 12px; border-left: 3px solid #0056b3; margin-top: 8px; border-radius: 0 4px 4px 0;">
                                                 ⭐ <strong>Custom Example:</strong> "${clickableCustom}"<br>
                                                 <span style="color: #444; font-size: 15px; margin-top: 4px; display: inline-block;">🇹🇭 ${customItem.thaiTranslation}</span>
@@ -629,7 +663,6 @@ ${promptDefs}`;
                                 }
                             });
                         }
-                        // ==========================================
 
                         html += `<div id="gemini-ex-${mIndex}-${dIndex}" class="gemini-example"></div>`;
                         
@@ -657,10 +690,8 @@ ${promptDefs}`;
 
                 resultDiv.innerHTML = html;
 
-               
                 fetchGeminiData(currentWord, definitionsForGemini);
 
-                
             } catch (error) {
                 resultDiv.innerHTML = '<p>An error occurred while fetching the data.</p>';
             }
@@ -671,6 +702,72 @@ ${promptDefs}`;
                 searchWord();
             }
         });
+
+        // ฟังก์ชันส่งออกไฟล์ JSON
+        function exportToJson() {
+            if (Object.keys(myWordDatabase).length === 0) {
+                alert("ยังไม่มีข้อมูลคำศัพท์สำหรับบันทึก ลองค้นหาคำศัพท์ดูก่อนครับ");
+                return;
+            }
+            const dataStr = JSON.stringify(myWordDatabase, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "monte_database.json";
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ฟังก์ชันนำเข้าไฟล์ JSON
+        function importFromJson(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    // ผสานข้อมูลเก่ากับข้อมูลที่โหลดมาใหม่
+                    myWordDatabase = { ...myWordDatabase, ...importedData };
+                    alert("โหลดข้อมูลคำศัพท์เรียบร้อยแล้ว แนะนำให้กดปุ่ม 'ดูคำศัพท์ที่บันทึกไว้'");
+                    document.getElementById('importFile').value = ''; // รีเซ็ต input
+                } catch (err) {
+                    alert("รูปแบบไฟล์ไม่ถูกต้อง กรุณาใช้ไฟล์ JSON ที่ได้จากระบบ");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ฟังก์ชันแสดงรายการคำศัพท์ทั้งหมดในฐานข้อมูล
+        function viewDatabase() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            
+            if (Object.keys(myWordDatabase).length === 0) {
+                resultDiv.innerHTML = '<div style="text-align: center; padding: 30px; color: #666;">ยังไม่มีคำศัพท์ในฐานข้อมูล</div>';
+                return;
+            }
+            
+            let html = '<div class="word" style="font-size: 28px; border-bottom: 2px solid var(--mw-red); padding-bottom: 10px; margin-bottom: 20px;">🗂️ คลังคำศัพท์ของฉัน</div>';
+            html += '<ul style="list-style-type: none; padding-left: 0;">';
+            
+            for (const word in myWordDatabase) {
+                const data = myWordDatabase[word];
+                let summary = "";
+                if (data.meanings.length > 0 && data.meanings[0].defTh) {
+                    summary = `<span style="color: #666; font-size: 15px; margin-left: 10px;">- ${data.meanings[0].defTh}</span>`;
+                }
+                
+                html += `<li style="margin-bottom: 15px; background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid var(--mw-red);">
+                            <span class="clickable-word" style="font-size: 20px; font-weight: bold; color: var(--mw-dark);" onclick="document.getElementById('searchInput').value='${word}'; searchWord(); window.scrollTo({ top: 0, behavior: 'smooth' });">${word}</span>
+                            <span style="color: var(--ai-purple); font-size: 15px; margin-left: 10px;">[${data.pronunciation}]</span>
+                            ${summary}
+                            <div style="font-size: 13px; color: #888; margin-top: 5px;">บันทึกไว้ ${data.meanings.length} ความหมายประโยค</div>
+                         </li>`;
+            }
+            html += '</ul>';
+            resultDiv.innerHTML = html;
+        }
     </script>
 </body>
 </html>
