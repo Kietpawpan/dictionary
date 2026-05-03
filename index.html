@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monte-Master Dictionary</title>
+    <!-- นำเข้าไลบรารี CryptoJS สำหรับการถอดรหัส -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <link rel="manifest" href="manifest.json">
     <style>
@@ -319,8 +320,11 @@
             <button onclick="searchWord()">Search</button>
         </div>
 
+        <!-- ชุดเครื่องมือจัดการฐานข้อมูล -->
         <div class="tools-container" style="display: flex; gap: 10px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px dashed #ccc;">
-            <button id="loadCloudBtn" onclick="loadFromCloud()" style="background-color: #17a2b8; font-size: 14px; padding: 8px 15px; color: white;">🔄 โหลดข้อมูลจาก Google Sheet</button>
+            <button onclick="exportToJson()" style="background-color: #28a745; font-size: 14px; padding: 8px 15px; color: white;">💾 บันทึกฐานข้อมูล (Export)</button>
+            <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importFromJson(event)">
+            <button onclick="document.getElementById('importFile').click()" style="background-color: #17a2b8; font-size: 14px; padding: 8px 15px; color: white;">📂 โหลดฐานข้อมูล (Import)</button>
             <button onclick="viewDatabase()" style="background-color: #ffc107; color: #333; font-size: 14px; padding: 8px 15px; font-weight: bold;">📋 ดูคำศัพท์ที่บันทึกไว้</button>
         </div>
 
@@ -328,32 +332,38 @@
     </div>
 
     <script>
-        // เอา URL ของ Google Apps Script มาใส่ตรงนี้
-        const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbwEGu6sPK1Kft3bFDSUWV9_wghODhBD2RnpLTl7GkAlyrdc-0XEWAhHHjgjMan0JyKfyA/exec";
-        
         let customDictionary = {};
-        let myWordDatabase = {}; 
+        let myWordDatabase = {}; // ตัวแปรหลักสำหรับเก็บข้อมูลคำศัพท์ที่ค้นหา
 
+        // Fetch the custom JSON file when the application loads
         fetch('monte-master.json')
             .then(response => response.json())
-            .then(data => { customDictionary = data; })
+            .then(data => {
+                customDictionary = data;
+            })
             .catch(error => console.log('Notice: Custom dictionary file not found or could not be loaded.', error));
 
         const ENCRYPTED_API_KEY = "U2FsdGVkX1968+lY4DtkMlfMTQ6bvc4kFvHNjmNl/FWmm3hw/RXcvDc70h6Tm5MnDMooVhi2tyg8GCAjqaeCZQ==";
+        
         let isSecretModeActivated = false;
         const SECRET_RAW_API_KEY = "none";
 
         function toggleSecretMode() {
             const container = document.getElementById('apiKeyContainer');
+            
             if (!isSecretModeActivated) {
                 isSecretModeActivated = true;
                 container.style.opacity = '0';
-                setTimeout(() => { container.style.display = 'none'; }, 300);
+                setTimeout(() => {
+                    container.style.display = 'none';
+                }, 300);
                 alert("✨ Secret Mode Activated! เชื่อมต่อ Gemini API อัตโนมัติ ✨");
             } else {
                 isSecretModeActivated = false;
                 container.style.display = 'block';
-                setTimeout(() => { container.style.opacity = '1'; }, 10);
+                setTimeout(() => {
+                    container.style.opacity = '1';
+                }, 10);
                 alert("🔒 กลับสู่โหมดปกติ ต้องใช้รหัสผ่าน 🔒");
             }
         }
@@ -378,6 +388,7 @@
             return text.split(' ').map(wordStr => {
                 const cleanWord = wordStr.replace(/[^a-zA-Z-]/g, '').toLowerCase();
                 const isMatch = cleanWord === targetWord.toLowerCase();
+                
                 if (isMatch) {
                     return `<strong><span class="clickable-word" onclick="searchFromText(this)">${wordStr}</span></strong>`;
                 } else {
@@ -387,7 +398,10 @@
         }
 
         function getDecryptedApiKey() {
-            if (isSecretModeActivated) return SECRET_RAW_API_KEY;
+            if (isSecretModeActivated) {
+                return SECRET_RAW_API_KEY;
+            }
+
             const password = document.getElementById('appPassword').value.trim();
             if (!password) return null;
             try {
@@ -396,20 +410,6 @@
                 return key ? key : null;
             } catch (error) {
                 return null;
-            }
-        }
-
-async function saveWordToSheet(wordData) {
-            // ลบเงื่อนไข .includes ออกไปเลยเพื่อให้อ่านค่า URL ได้ถูกต้อง
-            if (!GOOGLE_SHEET_API_URL) return;
-            try {
-                await fetch(GOOGLE_SHEET_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(wordData)
-                });
-            } catch (error) {
-                console.error("Save to cloud failed", error);
             }
         }
 
@@ -422,6 +422,7 @@ async function saveWordToSheet(wordData) {
                 return;
             }
 
+            // แสดงสถานะกำลังโหลด
             if (pronunEl) pronunEl.innerHTML = "✨ <em>กำลังโหลด...</em>";
             definitionsList.forEach(def => {
                 const el = document.getElementById(`gemini-ex-${def.mIndex}-${def.dIndex}`);
@@ -469,12 +470,15 @@ ${promptDefs}`;
                 
                 const resultData = JSON.parse(generatedText);
 
+                // อัปเดตคำอ่าน
                 if (pronunEl) {
                     pronunEl.innerText = resultData.pronunciation || "-";
                 }
 
+                // อัปเดตคำแปลและประโยคตัวอย่าง
                 const examplesArray = resultData.examples || [];
                 
+                // สร้างพื้นที่เก็บข้อมูลของคำนี้ในฐานข้อมูล
                 myWordDatabase[word] = {
                     word: word,
                     pronunciation: resultData.pronunciation || "-",
@@ -493,6 +497,7 @@ ${promptDefs}`;
                         const thaiTranslation = examplesArray[index].th || "";
                         el.innerHTML = `✨ <strong>Gemini:</strong> "${clickableSentence}"<br><span style="color: #666; font-size: 15px; margin-top: 6px; display: inline-block;">🇹🇭 ${thaiTranslation}</span>`;
                         
+                        // บันทึกความหมายและประโยคตัวอย่างลงฐานข้อมูล
                         myWordDatabase[word].meanings.push({
                             partOfSpeech: def.pos,
                             definition: def.definition,
@@ -504,8 +509,6 @@ ${promptDefs}`;
                         el.innerHTML = `✨ <span style="color: red;">No example generated</span>`;
                     }
                 });
-
-                saveWordToSheet(myWordDatabase[word]);
 
             } catch (error) {
                 console.error("Gemini API Error:", error);
@@ -700,35 +703,42 @@ ${promptDefs}`;
             }
         });
 
-        async function loadFromCloud() {
-            if (!GOOGLE_SHEET_API_URL || GOOGLE_SHEET_API_URL.includes("ใส่_URL")) {
-                alert("กรุณาใส่ URL ของ Google Apps Script ในโค้ดก่อนครับ");
+        // ฟังก์ชันส่งออกไฟล์ JSON
+        function exportToJson() {
+            if (Object.keys(myWordDatabase).length === 0) {
+                alert("ยังไม่มีข้อมูลคำศัพท์สำหรับบันทึก ลองค้นหาคำศัพท์ดูก่อนครับ");
                 return;
             }
-
-            const btn = document.getElementById('loadCloudBtn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = "⏳ กำลังโหลดข้อมูล...";
-            btn.disabled = true;
-
-            try {
-                const response = await fetch(GOOGLE_SHEET_API_URL);
-                const data = await response.json();
-                
-                if (Object.keys(data).length > 0) {
-                    myWordDatabase = { ...myWordDatabase, ...data };
-                    alert("ดึงข้อมูลจาก Google Sheet สำเร็จแล้วครับ");
-                } else {
-                    alert("ยังไม่มีข้อมูลใน Google Sheet ครับ");
-                }
-            } catch (error) {
-                alert("ไม่สามารถเชื่อมต่อ Google Sheet ได้");
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
+            const dataStr = JSON.stringify(myWordDatabase, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "monte_database.json";
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
+        // ฟังก์ชันนำเข้าไฟล์ JSON
+        function importFromJson(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    // ผสานข้อมูลเก่ากับข้อมูลที่โหลดมาใหม่
+                    myWordDatabase = { ...myWordDatabase, ...importedData };
+                    alert("โหลดข้อมูลคำศัพท์เรียบร้อยแล้ว แนะนำให้กดปุ่ม 'ดูคำศัพท์ที่บันทึกไว้'");
+                    document.getElementById('importFile').value = ''; // รีเซ็ต input
+                } catch (err) {
+                    alert("รูปแบบไฟล์ไม่ถูกต้อง กรุณาใช้ไฟล์ JSON ที่ได้จากระบบ");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ฟังก์ชันแสดงรายการคำศัพท์ทั้งหมดในฐานข้อมูล
         function viewDatabase() {
             const resultDiv = document.getElementById('result');
             resultDiv.style.display = 'block';
@@ -748,6 +758,7 @@ ${promptDefs}`;
                     summary = `<span style="color: #666; font-size: 15px; margin-left: 10px;">- ${data.meanings[0].defTh}</span>`;
                 }
                 
+                // แก้ไขตรงนี้เพื่อเรียกฟังก์ชัน viewSavedWord แทนการใช้ searchWord
                 html += `<li style="margin-bottom: 15px; background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid var(--mw-red);">
                             <span class="clickable-word" style="font-size: 20px; font-weight: bold; color: var(--mw-dark);" onclick="viewSavedWord('${word}')">${word}</span>
                             <span style="color: var(--ai-purple); font-size: 15px; margin-left: 10px;">[${data.pronunciation}]</span>
@@ -759,6 +770,7 @@ ${promptDefs}`;
             resultDiv.innerHTML = html;
         }
 
+// ฟังก์ชันสำหรับแสดงข้อมูลคำศัพท์ที่บันทึกไว้แบบออฟไลน์
         function viewSavedWord(word) {
             const data = myWordDatabase[word];
             const resultDiv = document.getElementById('result');
@@ -809,6 +821,8 @@ ${promptDefs}`;
             resultDiv.innerHTML = html;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
+
+
     </script>
 </body>
 </html>
